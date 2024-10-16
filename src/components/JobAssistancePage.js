@@ -1,10 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { storage, firestore } from '../firebase'; // Import Firebase storage and Firestore
+import { storage, firestore } from '../firebase'; // Adjust Firebase import as per your project structure
+import {
+  TextField, Button, Typography, Container, Grid, Paper, CircularProgress, Snackbar
+} from '@mui/material'; // Material-UI components
+import { Alert } from '@mui/material'; // Alert for feedback
 
 const JobAssistancePage = () => {
   const [resume, setResume] = useState(null);
   const [requirements, setRequirements] = useState('');
-  const [submissions, setSubmissions] = useState([]); // State for storing fetched submissions
+  const [submissions, setSubmissions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState(null);
 
   // Handle resume upload
   const handleResumeUpload = (event) => {
@@ -19,37 +26,43 @@ const JobAssistancePage = () => {
   // Handle form submission
   const handleSubmit = async (event) => {
     event.preventDefault();
-
-    if (!resume) {
-      alert('Please upload a resume.');
+    
+    if (!resume || !requirements) {
+      setError('Please upload a resume and enter job requirements.');
       return;
     }
 
+    setLoading(true);
+    setError(null);
+    
     try {
       // Step 1: Upload resume to Firebase Storage
       const resumeRef = storage.ref(`resumes/${resume.name}`);
       await resumeRef.put(resume);
-      const resumeUrl = await resumeRef.getDownloadURL(); // Get download URL
+      const resumeUrl = await resumeRef.getDownloadURL();
 
       // Step 2: Save job requirements and resume URL to Firestore
       await firestore.collection('jobAssistance').add({
-        requirements, // Store the user's job requirements
-        resumeUrl, // Store the resume URL
-        timestamp: new Date() // Add a timestamp for when the form was submitted
+        requirements,
+        resumeUrl,
+        timestamp: new Date(),
       });
 
       // Success message
-      alert('Resume and requirements submitted successfully.');
-      
+      setSuccess(true);
+
       // Reset form fields
       setResume(null);
       setRequirements('');
+      document.getElementById("resume-input").value = "";
 
-      // Fetch the updated submissions
+      // Fetch updated submissions
       fetchSubmissions();
     } catch (error) {
-      console.error('Error uploading resume or saving data:', error);
-      alert('Failed to submit. Please try again.');
+      setError('Error uploading resume or saving data. Please try again.');
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -58,7 +71,7 @@ const JobAssistancePage = () => {
     try {
       const snapshot = await firestore.collection('jobAssistance').orderBy('timestamp', 'desc').get();
       const submissionsData = snapshot.docs.map((doc) => doc.data());
-      setSubmissions(submissionsData); // Store the fetched data in state
+      setSubmissions(submissionsData);
     } catch (error) {
       console.error('Error fetching submissions:', error);
     }
@@ -70,46 +83,109 @@ const JobAssistancePage = () => {
   }, []);
 
   return (
-    <div className="job-assistance-page">
-      <h1>Job Assistance</h1>
-      <form onSubmit={handleSubmit}> {/* Link the form to handleSubmit */}
-        <div>
-          <label htmlFor="resume">Upload Resume:</label>
-          <input type="file" id="resume" onChange={handleResumeUpload} />
-        </div>
-        <div>
-          <label htmlFor="requirements">Job Requirements:</label>
-          <textarea
-            id="requirements"
-            value={requirements}
-            onChange={handleRequirementsChange}
-            rows="4"
-            cols="50"
-          />
-        </div>
-        <button type="submit">Submit</button>
-      </form>
+    <Container maxWidth="md" style={{ marginTop: '2rem' }}>
+      <Typography variant="h4" gutterBottom>
+        Job Assistance
+      </Typography>
+      
+      <Paper elevation={3} style={{ padding: '2rem', marginBottom: '2rem' }}>
+        <form onSubmit={handleSubmit}>
+          <Grid container spacing={3}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                id="requirements"
+                label="Job Requirements"
+                value={requirements}
+                onChange={handleRequirementsChange}
+                multiline
+                rows={4}
+                variant="outlined"
+                required
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <input
+                accept=".pdf,.doc,.docx"
+                style={{ display: 'none' }}
+                id="resume-input"
+                type="file"
+                onChange={handleResumeUpload}
+              />
+              <label htmlFor="resume-input">
+                <Button variant="contained" color="primary" component="span">
+                  {resume ? 'Resume Selected' : 'Upload Resume'}
+                </Button>
+              </label>
+            </Grid>
+            <Grid item xs={12}>
+              <Button
+                variant="contained"
+                color="secondary"
+                type="submit"
+                disabled={loading}
+                fullWidth
+              >
+                {loading ? <CircularProgress size={24} /> : 'Submit'}
+              </Button>
+            </Grid>
+          </Grid>
+        </form>
+      </Paper>
 
-      <h2>Submitted Resumes and Requirements</h2>
-      <div className="submissions">
+      {/* Success and Error Alerts */}
+      <Snackbar
+        open={success}
+        autoHideDuration={6000}
+        onClose={() => setSuccess(false)}
+      >
+        <Alert onClose={() => setSuccess(false)} severity="success">
+          Submission successful!
+        </Alert>
+      </Snackbar>
+
+      {error && (
+        <Snackbar
+          open={Boolean(error)}
+          autoHideDuration={6000}
+          onClose={() => setError(null)}
+        >
+          <Alert onClose={() => setError(null)} severity="error">
+            {error}
+          </Alert>
+        </Snackbar>
+      )}
+
+      {/* Display submissions */}
+      <Typography variant="h5" gutterBottom>
+        Submitted Resumes and Requirements
+      </Typography>
+      <div>
         {submissions.length > 0 ? (
           submissions.map((submission, index) => (
-            <div key={index} className="submission-item">
-              <p><strong>Requirements:</strong> {submission.requirements}</p>
-              <p>
+            <Paper
+              key={index}
+              style={{ padding: '1rem', marginBottom: '1rem' }}
+              elevation={2}
+            >
+              <Typography variant="body1">
+                <strong>Requirements:</strong> {submission.requirements}
+              </Typography>
+              <Typography variant="body1">
                 <strong>Resume:</strong>{' '}
                 <a href={submission.resumeUrl} target="_blank" rel="noopener noreferrer">
                   View Resume
                 </a>
-              </p>
-            </div>
+              </Typography>
+            </Paper>
           ))
         ) : (
-          <p>No submissions yet.</p>
+          <Typography>No submissions yet.</Typography>
         )}
       </div>
-    </div>
+    </Container>
   );
 };
 
 export default JobAssistancePage;
+NavigationPreloadManager

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { db, storage } from './firebaseConfig'; // Assuming you've configured Firebase in firebaseConfig.js
+import { db, storage } from './firebaseConfig'; // Adjust the path as necessary
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'; 
 import { collection, addDoc } from 'firebase/firestore';
+import './JobAssistancePage.css'; // External CSS for better styling
 
 const JobAssistance = () => {
   const [resume, setResume] = useState(null);
@@ -26,7 +27,7 @@ const JobAssistance = () => {
     }
 
     setIsUploading(true);
-    
+
     try {
       // Upload resume to Firebase Storage
       const storageRef = ref(storage, `resumes/${resume.name}`);
@@ -51,26 +52,39 @@ const JobAssistance = () => {
   };
 
   return (
-    <div>
-      <h2>Job Assistance</h2>
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label>Upload Resume:</label>
-          <input type="file" accept=".pdf,.doc,.docx" onChange={handleResumeChange} required />
+    <div className="job-assistance-container">
+      <h2 className="job-assistance-heading">Job Assistance</h2>
+      <p className="job-assistance-description">
+        Upload your resume and provide details about the type of job you're looking for. 
+        Our alumni network will help you find the right opportunity!
+      </p>
+      <form className="job-assistance-form" onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label htmlFor="resume" className="form-label">Upload Resume:</label>
+          <input 
+            type="file" 
+            id="resume" 
+            accept=".pdf,.doc,.docx" 
+            className="form-input" 
+            onChange={handleResumeChange} 
+            required 
+          />
         </div>
-        <div>
-          <label>Job Requirement:</label>
+        <div className="form-group">
+          <label htmlFor="jobRequirement" className="form-label">Job Requirement:</label>
           <textarea 
+            id="jobRequirement" 
             value={jobRequirement} 
             onChange={handleJobRequirementChange} 
+            className="form-input textarea-input"
             placeholder="Enter your job requirement" 
             required 
           />
         </div>
-        <button type="submit" disabled={isUploading}>
+        <button type="submit" className="submit-button" disabled={isUploading}>
           {isUploading ? 'Uploading...' : 'Submit'}
         </button>
-        {uploadSuccess && <p>Submission successful!</p>}
+        {uploadSuccess && <p className="success-message">Submission successful!</p>}
       </form>
     </div>
   );

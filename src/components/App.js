@@ -43,6 +43,7 @@ function App() {
         </nav>
 
         {/* Page Routes */}
+
       </div>
     </Router>
   );
